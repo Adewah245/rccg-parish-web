@@ -135,10 +135,28 @@ st.markdown("""
     
     /* Expander styling */
     .streamlit-expanderHeader {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
+        background: white !important;
+        color: #333 !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
+        border: 2px solid #667eea !important;
+        padding: 1rem !important;
+        font-size: 1.1rem !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+        margin: 0.5rem 0 !important;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background: #f8f9ff !important;
+        transform: translateX(5px);
+        transition: all 0.3s ease;
+    }
+    
+    div[data-testid="stExpander"] {
+        background: white;
+        border-radius: 10px;
+        margin: 0.5rem 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
     
     /* Animations */
