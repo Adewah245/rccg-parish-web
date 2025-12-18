@@ -1,0 +1,27 @@
+[
+    {
+        "name": "james adah",
+        "phone": "09055335566",
+        "address": "14 obagaya",
+        "birthday": "10-10-1995",
+        "joined": "2025-12-15 07:30"
+    },
+    {
+        "name": "john egajoko",
+        "phone": "235566467",
+        "email": "asffs@gmail.com",
+        "address": "55 ugboju",
+        "birthday": "12-2-2009",
+        "photo": "Photo copy failed",
+        "joined": "2025-12-16 03:50"
+    },
+    {
+        "name": "Joy home",
+        "phone": "09044554467",
+        "email": "23dddg@gmail.com",
+        "address": "34 ttcf",
+        "birthday": "5-4-1896",
+        "photo": "Joy_home_09044554467.jpg",
+        "joined": "2025-12-16 04:10"
+    }
+]
