@@ -112,4 +112,100 @@ with tab_whatsapp:
                          "[Type your message here]\n\n"
                          "God bless you richly!\n"
                          "- Parish Leadership 🌅")
-        encoded_msg = broadcast_msg.replace(" ", "%20
+        encoded_msg = broadcast_msg.replace(" ", "%20").replace("\n", "%0A")
+        broadcast_url = f"https://wa.me/?text={encoded_msg}"
+        st.markdown(f"[📲 Open WhatsApp with pre-filled broadcast message]({broadcast_url})")
+    else:
+        st.info("No phone numbers found yet.")
+
+with tab_email:
+    email_members = [m for m in members if m.get('email', '').strip()]
+    if email_members:
+        st.write(f"**{len(email_members)} members with emails:**")
+        emails = []
+        for m in sorted(email_members, key=lambda x: x['name'].lower()):
+            email = m['email'].strip()
+            emails.append(email)
+            st.write(f"• {m['name'].title()} — `{email}`")
+        
+        all_emails = "; ".join(emails)
+        st.code(all_emails, language=None)
+        st.caption("Copy emails → paste into BCC field of your email app")
+        
+        subject = "Message from RCCG Benue 2 Sunrise Parish"
+        body = ("Hello beloved family!\n\n"
+                "Here is today's message:\n\n"
+                "[Type your message here]\n\n"
+                "God bless you!\n"
+                "- Parish Leadership 🌅")
+        encoded_body = body.replace("\n", "%0A")
+        mailto_url = f"mailto:?bcc={all_emails}&subject={subject}&body={encoded_body}"
+        st.markdown(f"[📧 Open Email with all addresses (BCC)]({mailto_url})")
+    else:
+        st.info("No emails found yet.")
+
+# ================== MEMBERS DIRECTORY WITH 3-CHARACTER SEARCH ==================
+st.markdown("## 👥 Members Directory")
+
+search_term = st.text_input(
+    "🔍 Search by name or phone",
+    placeholder="Type at least 3 characters to search...",
+    help="Search activates only after 3 characters"
+).strip().lower()
+
+# Only filter if 3 or more characters
+if len(search_term) >= 3:
+    filtered_members = [
+        m for m in members
+        if search_term in m["name"].lower() or search_term in m["phone"]
+    ]
+else:
+    filtered_members = members
+
+if not filtered_members:
+    st.info("No members found." if len(search_term) >= 3 else "All members are shown below.")
+else:
+    for member in filtered_members:
+        with st.expander(f"👤 {member['name'].title()}  |  📞 {member['phone']}  |  🎂 {member['birthday']}"):
+            cols = st.columns([1, 3])
+            with cols[0]:
+                photo_path = member.get("photo", "")
+                if photo_path and os.path.exists(photo_path):
+                    st.image(photo_path, use_column_width=True, caption=member['name'].title())
+                else:
+                    st.markdown(
+                        """
+                        <div style="height:350px; background:#ecf0f1; border-radius:15px; 
+                                    display:flex; align-items:center; justify-content:center;">
+                            <p style="color:#95a5a6; font-size:1.6rem; margin:0;">📷 No Photo Yet</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+            with cols[1]:
+                st.markdown(f"**Full Name:** {member['name'].title()}")
+                st.markdown(f"**Phone:** {member['phone']}")
+                if member.get("email"):
+                    st.markdown(f"**Email:** {member['email']}")
+                if member.get("address"):
+                    st.markdown(f"**Address:** {member['address']}")
+                st.markdown(f"**Member Since:** {member.get('joined', 'N/A')}")
+
+                # General messaging buttons
+                phone = member['phone'].strip()
+                if phone.startswith('0'):
+                    phone = '234' + phone[1:]
+                elif not phone.startswith('234'):
+                    phone = '234' + phone
+                whatsapp_url = f"https://wa.me/{phone}?text=Hello%20{member['name'].title()}!%20Here%20is%20today's%20Bible%20verse/Sunday%20school%20lesson/announcement:%20[Type%20here]%20-%20Sunrise%20Parish%20🌅"
+                st.markdown(f"[📱 Send Message on WhatsApp]({whatsapp_url})")
+                if member.get("email"):
+                    email_url = f"mailto:{member['email']}?subject=Message%20from%20Sunrise%20Parish&body=Hello%20{member['name'].title()}!%20[Type%20your%20message%20here]"
+                    st.markdown(f"[📧 Send via Email]({email_url})")
+
+# Footer
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#7f8c8d; font-size:1.1rem;'>"
+            "Built with ❤️ and prayer for RCCG Benue 2 Sunrise Parish • Young & Adults Zone 🌅<br>"
+            "May the Lord continue to bless and increase this family in Jesus' name. Amen.</p>", 
+            unsafe_allow_html=True)
