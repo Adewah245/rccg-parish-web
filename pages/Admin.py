@@ -1,10 +1,11 @@
 import streamlit as st
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
-# ================== CONFIG ==================
+# ================== CONFIG (same as main app) ==================
 PARISH_NAME = "RCCG BENUE 2 SUNRISE PARISH YOUNG & ADULTS ZONE"
+ADMIN_PASSWORD = "sunriseadmin"  # CHANGE THIS TO A STRONG PASSWORD!
 MEMBERS_FILE = "data/parish_members.json"
 PHOTO_DIR = "photos"
 LOGO_DIR = "uploads/logo"
@@ -19,193 +20,159 @@ def load_members():
     with open(MEMBERS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def save_members(members):
+    with open(MEMBERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(members, f, indent=4, ensure_ascii=False)
+
+# ================== LOGIN ==================
+st.set_page_config(page_title="Admin • " + PARISH_NAME, page_icon="🔐")
+
+if "admin_logged_in" not in st.session_state:
+    st.session_state.admin_logged_in = False
+
+if not st.session_state.admin_logged_in:
+    st.markdown("# 🔐 Admin Login")
+    st.markdown("Enter the password to manage members")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if password == ADMIN_PASSWORD:
+            st.session_state.admin_logged_in = True
+            st.success("Welcome Admin 🌅")
+            st.rerun()
+        else:
+            st.error("Wrong password")
+    st.stop()
+
+# ================== ADMIN DASHBOARD ==================
+st.markdown(f"# {PARISH_NAME} - Admin Panel")
 members = load_members()
+st.markdown(f"**Total Members:** {len(members)}")
 
-# ================== UPCOMING BIRTHDAYS ==================
-today = datetime.today()
-upcoming = []
+st.divider()
+
+# ================== ADD NEW MEMBER ==================
+st.subheader("➕ Add New Member")
+
+current_year = datetime.now().year
+years = list(range(1950, current_year + 2))[::-1]
+
+with st.form("add_member_form"):
+    col1, col2 = st.columns(2)
+    with col1:
+        name = st.text_input("Full Name *")
+        phone = st.text_input("Phone Number *")
+        email = st.text_input("Email (optional)")
+    with col2:
+        address = st.text_input("Address (optional)")
+        birth_year = st.selectbox("Birth Year *", years)
+        birth_month = st.selectbox("Birth Month *", range(1, 13))
+        birth_day = st.selectbox("Birth Day *", range(1, 32))
+
+    photo = st.file_uploader("Upload Photo (optional)", type=["png", "jpg", "jpeg"])
+    submitted = st.form_submit_button("Add Member")
+
+    if submitted:
+        if not name or not phone:
+            st.error("Name and Phone are required!")
+        else:
+            try:
+                dob = datetime(birth_year, birth_month, birth_day)
+                birthday = dob.strftime("%d-%m-%Y")
+                photo_path = ""
+                if photo:
+                    photo_path = os.path.join(PHOTO_DIR, photo.name)
+                    with open(photo_path, "wb") as f:
+                        f.write(photo.getbuffer())
+
+                new_member = {
+                    "name": name.strip(),
+                    "phone": phone.strip(),
+                    "email": email.strip(),
+                    "address": address.strip(),
+                    "birthday": birthday,
+                    "photo": photo_path,
+                    "joined": datetime.now().strftime("%Y-%m-%d %H:%M")
+                }
+                members.append(new_member)
+                save_members(members)
+                st.success(f"✅ {name} added successfully!")
+                st.rerun()
+            except ValueError:
+                st.error("Invalid date selected")
+
+st.divider()
+
+# ================== EDIT OR DELETE MEMBER ==================
+st.subheader("✏️ Edit or Delete Member")
+
+search = st.text_input("🔍 Search member to edit/delete")
+found = [m for m in members if search.lower() in m["name"].lower() or search in m["phone"]]
+
+if search and found:
+    selected_member = st.selectbox(
+        "Select member",
+        found,
+        format_func=lambda m: f"{m['name']} - {m['phone']}"
+    )
+
+    # Load for edit
+    if st.button("Load Member for Edit"):
+        st.session_state.edit_member = selected_member
+        st.rerun()
+
+if "edit_member" in st.session_state:
+    m = st.session_state.edit_member
+
+    with st.form("edit_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            edit_name = st.text_input("Full Name *", value=m["name"])
+            edit_phone = st.text_input("Phone Number *", value=m["phone"])
+            edit_email = st.text_input("Email", value=m.get("email", ""))
+        with col2:
+            edit_address = st.text_input("Address", value=m.get("address", ""))
+
+        new_photo = st.file_uploader("Update Photo (optional)", type=["png", "jpg", "jpeg"])
+        save_edit = st.form_submit_button("Save Changes")
+
+        if save_edit:
+            if not edit_name or not edit_phone:
+                st.error("Name and Phone required")
+            else:
+                m["name"] = edit_name.strip()
+                m["phone"] = edit_phone.strip()
+                m["email"] = edit_email.strip()
+                m["address"] = edit_address.strip()
+
+                if new_photo:
+                    new_path = os.path.join(PHOTO_DIR, new_photo.name)
+                    with open(new_path, "wb") as f:
+                        f.write(new_photo.getbuffer())
+                    m["photo"] = new_path
+
+                save_members(members)
+                st.success("Member updated!")
+                del st.session_state.edit_member
+                st.rerun()
+
+    if st.button("🗑️ Delete This Member", type="primary"):
+        if st.button("CONFIRM DELETE - Cannot Undo", type="secondary"):
+            members.remove(m)
+            if m.get("photo") and os.path.exists(m["photo"]):
+                os.remove(m["photo"])
+            save_members(members)
+            st.success("Member deleted")
+            if "edit_member" in st.session_state:
+                del st.session_state.edit_member
+            st.rerun()
+
+# ================== LIST ALL MEMBERS ==================
+st.subheader("All Members List")
 for m in members:
-    try:
-        bday = datetime.strptime(m["birthday"], "%d-%m-%Y")
-        bday_this_year = bday.replace(year=today.year)
-        if bday_this_year < today:
-            bday_this_year = bday_this_year.replace(year=today.year + 1)
-        days_ahead = (bday_this_year - today).days
-        if 0 <= days_ahead <= 30:
-            upcoming.append((days_ahead, bday_this_year.strftime("%d %B"), m))
-    except:
-        pass
-upcoming.sort()
+    st.write(f"• {m['name']} | {m['phone']} | {m['birthday']}")
 
-# ================== PAGE SETUP & STYLE ==================
-st.set_page_config(page_title=PARISH_NAME, page_icon="🌅", layout="centered")
-
-st.markdown("""
-<style>
-    .big-title { font-size: 3rem; text-align: center; color: #c0392b; font-weight: bold; margin-bottom: 0.5rem; }
-    .subtitle { font-size: 1.6rem; text-align: center; color: #8e44ad; margin-bottom: 2rem; }
-    .christmas-message { 
-        font-size: 1.4rem; text-align: center; font-style: italic; color: #27ae60; 
-        background: #f0fff0; padding: 1.5rem; border-radius: 15px; margin: 2rem 0; 
-        border: 2px solid #27ae60; 
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# Header
-logo_files = [f for f in os.listdir(LOGO_DIR) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-if logo_files:
-    st.image(os.path.join(LOGO_DIR, logo_files[0]), width=180)
-
-st.markdown(f"<h1 class='big-title'>⛪ {PARISH_NAME}</h1>", unsafe_allow_html=True)
-st.markdown(f"<p class='subtitle'>👥 Total Members: {len(members)}</p>", unsafe_allow_html=True)
-
-st.markdown("""
-<div class='christmas-message'>
-📢 Christmas brings about a bounty of joy and the message of hope, love, and salvation through our Lord Jesus Christ.<br>
-May this holy season fill your hearts with peace, your homes with warmth, and your lives with His everlasting light! ✝️🎄
-</div>
-""", unsafe_allow_html=True)
-
-# ================== UPCOMING BIRTHDAYS ==================
-if upcoming:
-    st.markdown("### 🎉 Upcoming Birthdays (Next 30 Days)")
-    for days, date_str, m in upcoming:
-        with st.container(border=True):
-            st.markdown(f"**{m['name'].title()}** — {date_str} ({days} day{'s' if days != 1 else ''} away) 🎂")
-            phone = m['phone'].strip()
-            if phone.startswith('0'):
-                phone = '234' + phone[1:]
-            elif not phone.startswith('234'):
-                phone = '234' + phone
-            whatsapp_url = f"https://wa.me/{phone}?text=Happy%20Birthday%20{m['name'].title()}!%20May%20God%20bless%20you%20abundantly%20-%20Sunrise%20Parish%20🌅"
-            st.markdown(f"[📱 Send Birthday Wish on WhatsApp]({whatsapp_url})")
-            if m.get("email"):
-                email_url = f"mailto:{m['email']}?subject=Happy%20Birthday!&body=Dear%20{m['name'].title()},%20Happy%20Birthday!%20God%20bless%20you..."
-                st.markdown(f"[📧 Send via Email]({email_url})")
-
-# ================== MESSAGE DISTRIBUTION ==================
-st.markdown("### 📩 Message Distribution — Send to All Members")
-
-tab_whatsapp, tab_email = st.tabs(["📱 WhatsApp Numbers", "📧 Emails"])
-
-with tab_whatsapp:
-    whatsapp_members = [m for m in members if m['phone'].strip()]
-    if whatsapp_members:
-        st.write(f"**{len(whatsapp_members)} members with phone numbers:**")
-        numbers = []
-        for m in sorted(whatsapp_members, key=lambda x: x['name'].lower()):
-            phone = m['phone'].strip()
-            if phone.startswith('0'):
-                phone = '234' + phone[1:]
-            elif not phone.startswith('234'):
-                phone = '234' + phone
-            numbers.append(phone)
-            st.write(f"• {m['name'].title()} — `{phone}`")
-        
-        all_numbers = ",".join(numbers)
-        st.code(all_numbers, language=None)
-        st.caption("Copy the numbers above → paste into WhatsApp to create broadcast list")
-        
-        broadcast_msg = ("Hello beloved Sunrise Parish family!\n\n"
-                         "Here is today's Bible verse / Sunday school lesson / announcement:\n\n"
-                         "[Type your message here]\n\n"
-                         "God bless you richly!\n"
-                         "- Parish Leadership 🌅")
-        encoded_msg = broadcast_msg.replace(" ", "%20").replace("\n", "%0A")
-        broadcast_url = f"https://wa.me/?text={encoded_msg}"
-        st.markdown(f"[📲 Open WhatsApp with pre-filled broadcast message]({broadcast_url})")
-    else:
-        st.info("No phone numbers found yet.")
-
-with tab_email:
-    email_members = [m for m in members if m.get('email', '').strip()]
-    if email_members:
-        st.write(f"**{len(email_members)} members with emails:**")
-        emails = []
-        for m in sorted(email_members, key=lambda x: x['name'].lower()):
-            email = m['email'].strip()
-            emails.append(email)
-            st.write(f"• {m['name'].title()} — `{email}`")
-        
-        all_emails = "; ".join(emails)
-        st.code(all_emails, language=None)
-        st.caption("Copy emails → paste into BCC field of your email app")
-        
-        subject = "Message from RCCG Benue 2 Sunrise Parish"
-        body = ("Hello beloved family!\n\n"
-                "Here is today's message:\n\n"
-                "[Type your message here]\n\n"
-                "God bless you!\n"
-                "- Parish Leadership 🌅")
-        encoded_body = body.replace("\n", "%0A")
-        mailto_url = f"mailto:?bcc={all_emails}&subject={subject}&body={encoded_body}"
-        st.markdown(f"[📧 Open Email with all addresses (BCC)]({mailto_url})")
-    else:
-        st.info("No emails found yet.")
-
-# ================== MEMBERS DIRECTORY WITH 3-CHARACTER SEARCH ==================
-st.markdown("## 👥 Members Directory")
-
-search_term = st.text_input(
-    "🔍 Search by name or phone",
-    placeholder="Type at least 3 characters to search...",
-    help="Search activates only after 3 characters"
-).strip().lower()
-
-# Only filter if 3 or more characters
-if len(search_term) >= 3:
-    filtered_members = [
-        m for m in members
-        if search_term in m["name"].lower() or search_term in m["phone"]
-    ]
-else:
-    filtered_members = members
-
-if not filtered_members:
-    st.info("No members found." if len(search_term) >= 3 else "All members are shown below.")
-else:
-    for member in filtered_members:
-        with st.expander(f"👤 {member['name'].title()}  |  📞 {member['phone']}  |  🎂 {member['birthday']}"):
-            cols = st.columns([1, 3])
-            with cols[0]:
-                photo_path = member.get("photo", "")
-                if photo_path and os.path.exists(photo_path):
-                    st.image(photo_path, use_column_width=True, caption=member['name'].title())
-                else:
-                    st.markdown(
-                        """
-                        <div style="height:350px; background:#ecf0f1; border-radius:15px; 
-                                    display:flex; align-items:center; justify-content:center;">
-                            <p style="color:#95a5a6; font-size:1.6rem; margin:0;">📷 No Photo Yet</p>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-            with cols[1]:
-                st.markdown(f"**Full Name:** {member['name'].title()}")
-                st.markdown(f"**Phone:** {member['phone']}")
-                if member.get("email"):
-                    st.markdown(f"**Email:** {member['email']}")
-                if member.get("address"):
-                    st.markdown(f"**Address:** {member['address']}")
-                st.markdown(f"**Member Since:** {member.get('joined', 'N/A')}")
-
-                # General messaging buttons
-                phone = member['phone'].strip()
-                if phone.startswith('0'):
-                    phone = '234' + phone[1:]
-                elif not phone.startswith('234'):
-                    phone = '234' + phone
-                whatsapp_url = f"https://wa.me/{phone}?text=Hello%20{member['name'].title()}!%20Here%20is%20today's%20Bible%20verse/Sunday%20school%20lesson/announcement:%20[Type%20here]%20-%20Sunrise%20Parish%20🌅"
-                st.markdown(f"[📱 Send Message on WhatsApp]({whatsapp_url})")
-                if member.get("email"):
-                    email_url = f"mailto:{member['email']}?subject=Message%20from%20Sunrise%20Parish&body=Hello%20{member['name'].title()}!%20[Type%20your%20message%20here]"
-                    st.markdown(f"[📧 Send via Email]({email_url})")
-
-# Footer
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#7f8c8d; font-size:1.1rem;'>"
-            "Built with ❤️ and prayer for RCCG Benue 2 Sunrise Parish • Young & Adults Zone 🌅<br>"
-            "May the Lord continue to bless and increase this family in Jesus' name. Amen.</p>", 
-            unsafe_allow_html=True)
+# ================== LOGOUT ==================
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Logout"):
+    st.session_state.admin_logged_in = False
+    st.rerun()
