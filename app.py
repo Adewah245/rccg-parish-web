@@ -3,15 +3,18 @@ import json
 import os
 
 PARISH_NAME = "RCCG BENUE 2 SUNRISE PARISH YOUNG & ADULTS ZONE"
-MEMBERS_FILE = "parish_members.json"
-PHOTO_DIR = "photos"
-LOGO_DIR = "uploads/logo"  # Optional logo folder
+MEMBERS_FILE = "data/parish_members.json"  # ← Fixed path
+PHOTO_DIR = "photos"                       # If photos folder is root, keep this
+# If photos are inside data/, change to "data/photos"
+LOGO_DIR = "uploads/logo"
 
+os.makedirs("data", exist_ok=True)         # Ensures data folder exists
 os.makedirs(PHOTO_DIR, exist_ok=True)
 os.makedirs(LOGO_DIR, exist_ok=True)
 
 def load_members():
     if not os.path.exists(MEMBERS_FILE):
+        st.warning("No members data found yet — add some via Admin!")
         return []
     with open(MEMBERS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
