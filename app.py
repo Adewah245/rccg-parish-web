@@ -58,4 +58,6 @@ if logo_files:
     st.image(os.path.join(LOGO_DIR, logo_files[0]), width=180)
 
 st.markdown(f"<h1 class='big-title'>⛪ {PARISH_NAME}</h1>", unsafe_allow_html=True)
-st.markdown(f"<p class
+st.markdown(f"<p class='subtitle'>👥 Total Members: {len(members)}</p>", unsafe_allow_html=True)
+
+st
