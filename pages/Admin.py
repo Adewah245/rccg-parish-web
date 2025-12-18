@@ -3,16 +3,14 @@ import json
 import os
 from datetime import datetime
 
-# ================== CONFIG (same as main app) ==================
+# ================== CONFIG ==================
 PARISH_NAME = "RCCG BENUE 2 SUNRISE PARISH YOUNG & ADULTS ZONE"
 ADMIN_PASSWORD = "sunriseadmin"  # CHANGE THIS TO A STRONG PASSWORD!
 MEMBERS_FILE = "data/parish_members.json"
 PHOTO_DIR = "photos"
-LOGO_DIR = "uploads/logo"
 
 os.makedirs("data", exist_ok=True)
 os.makedirs(PHOTO_DIR, exist_ok=True)
-os.makedirs(LOGO_DIR, exist_ok=True)
 
 def load_members():
     if not os.path.exists(MEMBERS_FILE):
@@ -32,7 +30,6 @@ if "admin_logged_in" not in st.session_state:
 
 if not st.session_state.admin_logged_in:
     st.markdown("# 🔐 Admin Login")
-    st.markdown("Enter the password to manage members")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
         if password == ADMIN_PASSWORD:
@@ -56,24 +53,24 @@ st.subheader("➕ Add New Member")
 current_year = datetime.now().year
 years = list(range(1950, current_year + 2))[::-1]
 
-with st.form("add_member_form"):
+with st.form("add_member"):
     col1, col2 = st.columns(2)
     with col1:
         name = st.text_input("Full Name *")
         phone = st.text_input("Phone Number *")
-        email = st.text_input("Email (optional)")
+        email = st.text_input("Email")
     with col2:
-        address = st.text_input("Address (optional)")
+        address = st.text_input("Address")
         birth_year = st.selectbox("Birth Year *", years)
-        birth_month = st.selectbox("Birth Month *", range(1, 13))
-        birth_day = st.selectbox("Birth Day *", range(1, 32))
+        birth_month = st.selectbox("Birth Month *", range(1,13))
+        birth_day = st.selectbox("Birth Day *", range(1,32))
 
-    photo = st.file_uploader("Upload Photo (optional)", type=["png", "jpg", "jpeg"])
+    photo = st.file_uploader("Photo", type=["png", "jpg", "jpeg"])
     submitted = st.form_submit_button("Add Member")
 
     if submitted:
         if not name or not phone:
-            st.error("Name and Phone are required!")
+            st.error("Name and Phone required")
         else:
             try:
                 dob = datetime(birth_year, birth_month, birth_day)
@@ -95,33 +92,31 @@ with st.form("add_member_form"):
                 }
                 members.append(new_member)
                 save_members(members)
-                st.success(f"✅ {name} added successfully!")
+                st.success("Member added!")
                 st.rerun()
-            except ValueError:
-                st.error("Invalid date selected")
+            except:
+                st.error("Invalid date")
 
 st.divider()
 
 # ================== EDIT OR DELETE MEMBER ==================
 st.subheader("✏️ Edit or Delete Member")
 
-search = st.text_input("🔍 Search member to edit/delete")
-found = [m for m in members if search.lower() in m["name"].lower() or search in m["phone"]]
+search_term = st.text_input("🔍 Search member by name or phone", placeholder="Type at least 3 characters...").strip().lower()
 
-if search and found:
-    selected_member = st.selectbox(
-        "Select member",
-        found,
-        format_func=lambda m: f"{m['name']} - {m['phone']}"
-    )
+if len(search_term) >= 3:
+    found_members = [m for m in members if search_term in m["name"].lower() or search_term in m["phone"]]
+else:
+    found_members = members
 
-    # Load for edit
-    if st.button("Load Member for Edit"):
-        st.session_state.edit_member = selected_member
-        st.rerun()
+if found_members:
+    selected = st.selectbox("Select member", found_members, format_func=lambda m: f"{m['name']} - {m['phone']}")
 
-if "edit_member" in st.session_state:
-    m = st.session_state.edit_member
+    if selected:
+        st.session_state.selected_member = selected
+
+if "selected_member" in st.session_state:
+    m = st.session_state.selected_member
 
     with st.form("edit_form"):
         col1, col2 = st.columns(2)
@@ -132,10 +127,10 @@ if "edit_member" in st.session_state:
         with col2:
             edit_address = st.text_input("Address", value=m.get("address", ""))
 
-        new_photo = st.file_uploader("Update Photo (optional)", type=["png", "jpg", "jpeg"])
-        save_edit = st.form_submit_button("Save Changes")
+        new_photo = st.file_uploader("Update Photo", type=["png", "jpg", "jpeg"])
+        save_btn = st.form_submit_button("Save Changes")
 
-        if save_edit:
+        if save_btn:
             if not edit_name or not edit_phone:
                 st.error("Name and Phone required")
             else:
@@ -152,27 +147,8 @@ if "edit_member" in st.session_state:
 
                 save_members(members)
                 st.success("Member updated!")
-                del st.session_state.edit_member
+                del st.session_state.selected_member
                 st.rerun()
 
-    if st.button("🗑️ Delete This Member", type="primary"):
-        if st.button("CONFIRM DELETE - Cannot Undo", type="secondary"):
-            members.remove(m)
-            if m.get("photo") and os.path.exists(m["photo"]):
-                os.remove(m["photo"])
-            save_members(members)
-            st.success("Member deleted")
-            if "edit_member" in st.session_state:
-                del st.session_state.edit_member
-            st.rerun()
-
-# ================== LIST ALL MEMBERS ==================
-st.subheader("All Members List")
-for m in members:
-    st.write(f"• {m['name']} | {m['phone']} | {m['birthday']}")
-
-# ================== LOGOUT ==================
-st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Logout"):
-    st.session_state.admin_logged_in = False
-    st.rerun()
+    if st.button("🗑️ Delete Member", type="primary"):
+        if st
