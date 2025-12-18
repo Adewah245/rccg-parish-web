@@ -2,32 +2,31 @@ import streamlit as st
 import json
 import os
 
+# ================== CONFIG ==================
 PARISH_NAME = "RCCG BENUE 2 SUNRISE PARISH YOUNG & ADULTS ZONE"
-MEMBERS_FILE = "data/parish_members.json"  # ← Fixed path
-PHOTO_DIR = "photos"                       # If photos folder is root, keep this
-# If photos are inside data/, change to "data/photos"
+MEMBERS_FILE = "data/parish_members.json"
+PHOTO_DIR = "photos"
 LOGO_DIR = "uploads/logo"
 
-os.makedirs("data", exist_ok=True)         # Ensures data folder exists
+os.makedirs("data", exist_ok=True)
 os.makedirs(PHOTO_DIR, exist_ok=True)
 os.makedirs(LOGO_DIR, exist_ok=True)
 
 def load_members():
     if not os.path.exists(MEMBERS_FILE):
-        st.warning("No members data found yet — add some via Admin!")
         return []
     with open(MEMBERS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 members = load_members()
 
+# ================== PAGE SETUP ==================
 st.set_page_config(page_title=PARISH_NAME, page_icon="🌅", layout="centered")
 
-st.markdown("""
+st.markdown(f"""
 <style>
-    .big-title { font-size: 2.8rem; text-align: center; color: #e67e22; }
-    .message { font-size: 1.3rem; text-align: center; font-style: italic; color: #27ae60; margin: 2rem 0; }
-    .card { padding: 1.5rem; border-radius: 15px; background: white; box-shadow: 0 8px 20px rgba(0,0,0,0.1); margin: 1.5rem 0; }
+    .big-title {{ font-size: 2.8rem; text-align: center; color: #e67e22; margin-bottom: 0; }}
+    .message {{ font-size: 1.3rem; text-align: center; font-style: italic; color: #27ae60; margin: 2rem 0; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -37,34 +36,49 @@ if logo_files:
     st.image(os.path.join(LOGO_DIR, logo_files[0]), width=200)
 
 st.markdown(f"<h1 class='big-title'>⛪ {PARISH_NAME}</h1>", unsafe_allow_html=True)
-st.markdown(f"<h2 style='text-align:center;'>👥 Total Members: {len(members)}</h2>", unsafe_allow_html=True)
+st.markdown(f"<h2 style='text-align:center; margin-bottom: 2rem;'>👥 Total Members: {len(members)}</h2>", unsafe_allow_html=True)
 
 st.markdown("<p class='message'>📢 Christmas brings about a bounty of joy and the message of hope, love, and salvation through our Lord Jesus Christ. May this season fill your hearts with peace! ✝️🎄</p>", unsafe_allow_html=True)
 
-# Members Directory
+# ================== MEMBERS DIRECTORY - CLICK TO OPEN DETAILS ==================
 st.markdown("## 👥 Members Directory")
-search = st.text_input("🔍 Search by name or phone").strip().lower()
 
-filtered = [m for m in members if not search or search in m["name"].lower() or search in m["phone"]]
+search = st.text_input("🔍 Search by name or phone", placeholder="Type to search...").strip().lower()
 
-for m in filtered:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    cols = st.columns([1, 3])
-    with cols[0]:
-        photo = m.get("photo", "")
-        if photo and os.path.exists(photo):
-            with st.expander("📷 View Full Photo"):
-                st.image(photo, use_column_width=True, caption=m["name"])
-            st.image(photo, width=150)
-        else:
-            st.markdown("<div style='text-align:center;padding:50px;background:#f0f0f0;border-radius:10px;'>📷 No Photo</div>", unsafe_allow_html=True)
-    with cols[1]:
-        st.markdown(f"### {m['name']}")
-        st.write(f"📞 **Phone:** {m['phone']}")
-        if m.get("email"): st.write(f"📧 **Email:** {m.get('email')}")
-        if m.get("address"): st.write(f"🏠 **Address:** {m.get('address')}")
-        st.write(f"🎂 **Birthday:** {m['birthday']}")
-        st.write(f"📅 **Joined:** {m.get('joined', 'N/A')}")
-    st.markdown('</div>', unsafe_allow_html=True)
+filtered_members = [
+    m for m in members
+    if not search or search in m["name"].lower() or search in m["phone"]
+]
 
-st.markdown("<hr><p style='text-align:center;'>Built with ❤️ for RCCG Sunrise Parish 🌅</p>", unsafe_allow_html=True)
+if not filtered_members:
+    st.info("No members found matching your search." if search else "No members registered yet.")
+else:
+    for member in filtered_members:
+        with st.expander(f"👤 {member['name'].title()}  |  📞 {member['phone']}  |  🎂 {member['birthday']}"):
+            cols = st.columns([1, 2])
+            with cols[0]:
+                photo_path = member.get("photo", "")
+                if photo_path and os.path.exists(photo_path):
+                    st.image(photo_path, use_column_width=True, caption=member['name'].title())
+                else:
+                    st.markdown(
+                        """
+                        <div style="height:300px; background:#f8f9fa; border-radius:10px; 
+                                    display:flex; align-items:center; justify-content:center;">
+                            <p style="color:#adb5bd; font-size:1.5rem; margin:0;">📷 No Photo Yet</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+            with cols[1]:
+                st.markdown(f"**Name:** {member['name'].title()}")
+                st.markdown(f"**Phone:** {member['phone']}")
+                if member.get("email"):
+                    st.markdown(f"**Email:** {member['email']}")
+                if member.get("address"):
+                    st.markdown(f"**Address:** {member['address']}")
+                st.markdown(f"**Joined:** {member.get('joined', 'N/A')}")
+
+# Footer
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#666;'>Built with ❤️ for RCCG Benue 2 Sunrise Parish • Young & Adults Zone 🌅</p>", unsafe_allow_html=True)
