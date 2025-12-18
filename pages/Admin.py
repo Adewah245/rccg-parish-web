@@ -3,126 +3,93 @@ import json
 import os
 from datetime import datetime
 
-# ================== CONFIG ==================
+# ================== CONFIG - SAME AS MAIN APP ==================
 PARISH_NAME = "RCCG BENUE 2 SUNRISE PARISH YOUNG & ADULTS ZONE"
-ADMIN_PASSWORD = "sunriseadmin"  # ⚠️ CHANGE THIS TO A STRONG PASSWORD LATER!
+ADMIN_PASSWORD = "sunriseadmin"  # CHANGE THIS TO A STRONG PASSWORD!
+MEMBERS_FILE = "data/parish_members.json"
+PHOTO_DIR = "photos"
+LOGO_DIR = "uploads/logo"
 
-DATA_DIR = "data"
-UPLOAD_DIR = "uploads"
-PHOTO_DIR = os.path.join(UPLOAD_DIR, "photos")
-LOGO_DIR = os.path.join(UPLOAD_DIR, "logo")
-MEMBERS_FILE = os.path.join(DATA_DIR, "members.json")
-
-# ================== SETUP DIRECTORIES ==================
-os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs("data", exist_ok=True)
 os.makedirs(PHOTO_DIR, exist_ok=True)
 os.makedirs(LOGO_DIR, exist_ok=True)
 
 def load_members():
     if not os.path.exists(MEMBERS_FILE):
         return []
-    with open(MEMBERS_FILE, "r") as f:
+    with open(MEMBERS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def save_members(members):
-    with open(MEMBERS_FILE, "w") as f:
-        json.dump(members, f, indent=4)
-
-# ================== PAGE CONFIG ==================
-st.set_page_config(page_title="Admin • " + PARISH_NAME, page_icon="🔐", layout="centered")
+    with open(MEMBERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(members, f, indent=4, ensure_ascii=False)
 
 # ================== LOGIN ==================
+st.set_page_config(page_title="Admin • " + PARISH_NAME, page_icon="🔐")
+
 if "admin_logged_in" not in st.session_state:
     st.session_state.admin_logged_in = False
 
 if not st.session_state.admin_logged_in:
     st.markdown("# 🔐 Admin Login")
-    st.markdown("### Enter password to access admin panel")
-    
-    password = st.text_input("Password", type="password", placeholder="Type here...")
-    
-    col1, col2, col3 = st.columns([1,1,2])
-    with col2:
-        if st.button("Login", use_container_width=True):
-            if password == ADMIN_PASSWORD:
-                st.session_state.admin_logged_in = True
-                st.success("✅ Login successful! Welcome Admin 🌅")
-                st.rerun()
-            else:
-                st.error("❌ Wrong password")
+    st.markdown("### Enter password to manage members")
+    password = st.text_input("Password", type="password")
+    if st.button("Login", use_container_width=True):
+        if password == ADMIN_PASSWORD:
+            st.session_state.admin_logged_in = True
+            st.success("Welcome Admin 🌅")
+            st.rerun()
+        else:
+            st.error("Wrong password")
     st.stop()
 
-# ================== ADMIN DASHBOARD (After Login) ==================
-st.markdown(f"# 🌅 {PARISH_NAME}")
-st.markdown("### Admin Dashboard")
+# ================== ADMIN DASHBOARD ==================
+st.markdown(f"# {PARISH_NAME}")
+st.markdown("### Admin Dashboard ✨")
 
-# Show logo if exists
-logo_files = [f for f in os.listdir(LOGO_DIR) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-if logo_files:
-    st.image(os.path.join(LOGO_DIR, logo_files[0]), width=150)
-
-st.markdown("---")
-
-# ================== UPLOAD LOGO ==================
-st.subheader("🖼️ Upload / Change Parish Logo")
-logo_upload = st.file_uploader("Choose a logo image (PNG/JPG)", type=["png", "jpg", "jpeg"], key="logo")
-if logo_upload:
-    # Clear old logos (optional - keeps only one)
-    for old in os.listdir(LOGO_DIR):
-        os.remove(os.path.join(LOGO_DIR, old))
-    # Save new
-    logo_path = os.path.join(LOGO_DIR, logo_upload.name)
-    with open(logo_path, "wb") as f:
-        f.write(logo_upload.getbuffer())
-    st.success("Logo updated successfully!")
-    st.rerun()
-
-st.markdown("---")
+members = load_members()
+st.markdown(f"**Total Members:** {len(members)}")
 
 # ================== ADD NEW MEMBER ==================
 st.subheader("➕ Add New Member")
 
 current_year = datetime.now().year
-years = list(range(1950, current_year + 2))[::-1]  # 1950 to next year
+years = list(range(1950, current_year + 2))[::-1]
 
-with st.form("add_member_form", clear_on_submit=True):
+with st.form("add_member"):
     col1, col2 = st.columns(2)
-    
     with col1:
-        name = st.text_input("Full Name *", placeholder="e.g. John Adebayo")
-        phone = st.text_input("Phone Number *", placeholder="e.g. 08012345678")
-        email = st.text_input("Email (optional)", placeholder="john@example.com")
-    
+        name = st.text_input("Full Name *")
+        phone = st.text_input("Phone Number *")
+        email = st.text_input("Email (optional)")
     with col2:
-        address = st.text_input("Address (optional)", placeholder="e.g. Makurdi, Benue")
+        address = st.text_input("Address (optional)")
         birth_year = st.selectbox("Birth Year *", years)
-        birth_month = st.selectbox("Birth Month *", list(range(1, 13)))
-        birth_day = st.selectbox("Birth Day *", list(range(1, 32)))
-    
-    photo = st.file_uploader("Upload Photo (optional)", type=["png", "jpg", "jpeg"], key="photo")
-    
-    submitted = st.form_submit_button("Add Member", use_container_width=True)
-    
+        birth_month = st.selectbox("Birth Month *", range(1,13))
+        birth_day = st.selectbox("Birth Day *", range(1,32))
+
+    photo = st.file_uploader("Upload Photo (optional)", type=["png", "jpg", "jpeg"])
+    submitted = st.form_submit_button("Add Member")
+
     if submitted:
         if not name or not phone:
             st.error("Name and Phone are required!")
         else:
             try:
                 dob = datetime(birth_year, birth_month, birth_day)
+                birthday = dob.strftime("%d-%m-%Y")
                 photo_path = ""
                 if photo:
                     photo_path = os.path.join(PHOTO_DIR, photo.name)
                     with open(photo_path, "wb") as f:
                         f.write(photo.getbuffer())
-                
-                members = load_members()
+
                 new_member = {
-                    "id": datetime.now().timestamp(),
                     "name": name.strip(),
                     "phone": phone.strip(),
                     "email": email.strip(),
                     "address": address.strip(),
-                    "birthday": dob.strftime("%d-%m-%Y"),
+                    "birthday": birthday,
                     "photo": photo_path,
                     "joined": datetime.now().strftime("%Y-%m-%d %H:%M")
                 }
@@ -131,36 +98,66 @@ with st.form("add_member_form", clear_on_submit=True):
                 st.success(f"✅ {name} added successfully!")
                 st.rerun()
             except ValueError:
-                st.error("Invalid date! (e.g., February doesn't have 31 days)")
+                st.error("Invalid date (e.g. Feb 30 doesn't exist)")
 
-st.markdown("---")
+# ================== EDIT OR DELETE MEMBER ==================
+st.subheader("✏️ Edit or Delete Member")
 
-# ================== MANAGE MEMBERS (List & Delete) ==================
-st.subheader("👥 Manage Members")
-members = load_members()
-members = sorted(members, key=lambda x: x["name"].lower())
+search = st.text_input("🔍 Search member by name or phone")
+found_members = [m for m in members if search.lower() in m["name"].lower() or search in m["phone"]]
 
-search = st.text_input("🔍 Search member to delete")
-filtered = [m for m in members if not search or search.lower() in m["name"].lower()]
+if search and found_members:
+    selected = st.selectbox(
+        "Select member to edit/delete",
+        found_members,
+        format_func=lambda m: f"{m['name']} ({m['phone']})"
+    )
 
-if not filtered:
-    st.info("No members found.")
-else:
-    for m in filtered:
-        cols = st.columns([1, 4, 1])
-        with cols[0]:
-            if m["photo"] and os.path.exists(m["photo"]):
-                st.image(m["photo"], width=80)
-            else:
-                st.markdown("📷<br>No Photo", unsafe_allow_html=True)
-        with cols[1]:
-            st.write(f"**{m['name']}**")
-            st.caption(f"📞 {m['phone']} | 🎂 {m['birthday']}")
-        with cols[2]:
-            if st.button("🗑️ Delete", key=f"del_{m['id']}"):
-                members = [x for x in members if x["id"] != m["id"]]
-                if m["photo"] and os.path.exists(m["photo"]):
-                    os.remove(m["photo"])
+    if selected:
+        with st.form("edit_member"):
+            col1, col2 = st.columns(2)
+            with col1:
+                edit_name = st.text_input("Full Name *", value=selected["name"])
+                edit_phone = st.text_input("Phone Number *", value=selected["phone"])
+                edit_email = st.text_input("Email", value=selected.get("email", ""))
+            with col2:
+                edit_address = st.text_input("Address", value=selected.get("address", ""))
+                # Birthday kept as is (or you can add dropdowns if needed)
+
+            new_photo = st.file_uploader("Update Photo (optional)", type=["png", "jpg", "jpeg"])
+            save_btn = st.form_submit_button("Save Changes")
+
+            if save_btn:
+                if not edit_name or not edit_phone:
+                    st.error("Name and Phone required")
+                else:
+                    # Update the member in list
+                    selected["name"] = edit_name.strip()
+                    selected["phone"] = edit_phone.strip()
+                    selected["email"] = edit_email.strip()
+                    selected["address"] = edit_address.strip()
+
+                    if new_photo:
+                        new_path = os.path.join(PHOTO_DIR, new_photo.name)
+                        with open(new_path, "wb") as f:
+                            f.write(new_photo.getbuffer())
+                        selected["photo"] = new_path
+
+                    save_members(members)
+                    st.success("Member updated successfully!")
+                    st.rerun()
+
+        if st.button("🗑️ Delete This Member", type="primary"):
+            if st.button("Confirm Delete - No Undo!", type="secondary"):
+                members.remove(selected)
+                if selected.get("photo") and os.path.exists(selected["photo"]):
+                    os.remove(selected["photo"])
                 save_members(members)
-                st.warning(f"{m['name']} deleted.")
-                st.rerun
+                st.success("Member deleted")
+                st.rerun()
+
+# ================== LOGOUT ==================
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Logout"):
+    st.session_state.admin_logged_in = False
+    st.rerun()
